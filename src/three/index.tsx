@@ -1,6 +1,9 @@
 import type { Layout, SheetMeasure, SheetSpec } from '../geometry'
+import { RoofScene as RoofSceneImpl } from './RoofScene'
+import { SheetInfo3D as SheetInfo3DImpl } from './SheetInfo3D'
+import type { CameraMode } from './types'
 
-export type CameraMode = 'orbit' | 'top'
+export type { CameraMode } from './types'
 
 export interface RoofSceneProps {
   layout: Layout
@@ -26,11 +29,10 @@ export interface SheetInfo3DProps {
   showOverlap: boolean
 }
 
-// Placeholder implementations; the 3D phase replaces these.
-export function RoofScene(_props: RoofSceneProps) {
-  return <div style={{ width: '100%', height: '100%', background: '#dde3ea' }} />
+export function RoofScene(props: RoofSceneProps) {
+  return <RoofSceneImpl {...props} />
 }
 
-export function SheetInfo3D(_props: SheetInfo3DProps) {
-  return <div style={{ width: '100%', height: '100%', background: '#dde3ea' }} />
+export function SheetInfo3D(props: SheetInfo3DProps) {
+  return <SheetInfo3DImpl {...props} />
 }
