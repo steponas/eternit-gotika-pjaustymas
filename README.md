@@ -1,6 +1,6 @@
 # Gotika pjovimo pagalbininkas
 
-Mobiliai pritaikyta lietuviška žiniatinklio programa Eternit Gotika stogo lakštų išdėstymui ir pjovimui. Po pirmo įkėlimo veikia ir be interneto (PWA).
+Mobile-first web-app, padedantis skaičiuoti Eternit Gotika šiferio pjovimo kampus... ant žemės, nelaipant pirmyn atgal.
 
 ## Paleidimas
 
@@ -9,25 +9,13 @@ npm install
 npm run dev
 ```
 
-## Testai ir build
+## Kita
 
-```bash
-npm test
-npm run build
-```
-
-PWA ikonas generuoti (po `public/icon.svg` pakeitimo):
+PWA ikonų pergeneravimas (po `public/icon.svg` pakeitimo):
 
 ```bash
 npm run generate-pwa-assets
 ```
-
-## Diegimas (GitHub Pages)
-
-1. Repozitorijos nustatymuose: **Settings → Pages → Source: GitHub Actions**.
-2. Push į `main` (arba paleiskite workflow rankiniu būdu) — GitHub Actions sukompiliuoja ir išviešina `dist`.
-
-Programa veikia po katalogu `/<repo>/` (Vite `base: './'`).
 
 ## Pastaba apie specifikacijas
 
