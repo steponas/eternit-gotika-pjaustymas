@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Gotika">
+  <rect width="512" height="512" rx="96" ry="96" fill="#b0452f"/>
+  <g fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M88 176c28-40 56 40 84 0s56 40 84 0 56 40 84 0 56 40 84 0"/>
+    <path d="M88 236c28-40 56 40 84 0s56 40 84 0 56 40 84 0 56 40 84 0"/>
+    <path d="M88 296c28-40 56 40 84 0s56 40 84 0 56 40 84 0 56 40 84 0"/>
+    <path d="M88 356c28-40 56 40 84 0s56 40 84 0 56 40 84 0 56 40 84 0"/>
+  </g>
+  <line
+    x1="148"
+    y1="404"
+    x2="364"
+    y2="108"
+    stroke="#ffffff"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-dasharray="26 20"
+  />
+</svg>

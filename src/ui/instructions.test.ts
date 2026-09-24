@@ -9,6 +9,7 @@ import {
 import { waveOrdinal } from '../i18n/lt'
 import {
   generateInstructions,
+  nearRectCorner,
   removedSideLabel,
 } from './instructions'
 
@@ -254,6 +255,75 @@ describe('generateInstructions', () => {
     expect(
       steps.some((s) => s.includes('Dešiniajame krašte pažymėkite 200 mm nuo apačios')),
     ).toBe(true)
+  })
+
+  it('uses corner phrases when endpoints are within 3 mm of rectangle corners', () => {
+    const sheet: PlacedSheet = {
+      id: 'r0c0',
+      row: 0,
+      col: 0,
+      order: 1,
+      origin: { x: 0, y: 0 },
+      kind: 'cut',
+      isTopRow: false,
+      piece: [
+        { x: 50, y: 0 },
+        { x: 920, y: 0 },
+        { x: 920, y: 585 },
+        { x: 0, y: 585 },
+        { x: 0, y: 134 },
+      ],
+      pieceArea: 400000,
+    }
+    const measure: SheetMeasure = {
+      cuts: [
+        {
+          a: {
+            // near bottom-right (920, 0)
+            p: { x: 919, y: 1 },
+            edge: 'bottom',
+            fromLeft: 919,
+            fromRight: 1,
+            recommended: 'fromRight',
+            nearestCrest: { wave: 5, offset: 109.6 },
+          },
+          b: {
+            // near top-left (0, 585)
+            p: { x: 2, y: 584 },
+            edge: 'top',
+            fromLeft: 2,
+            fromRight: 918,
+            recommended: 'fromLeft',
+            nearestCrest: { wave: 1, offset: -109 },
+          },
+          length: 1000,
+        },
+      ],
+      holes: [],
+      replacementHoles: [],
+      nearestHoleToCut: null,
+      offcut: null,
+    }
+    const steps = generateInstructions(measure, sheet, GOTIKA)
+    expect(steps).toContain('Pjūvis prasideda apatiniame dešiniajame kampe.')
+    expect(steps).toContain('Pjūvis baigiasi viršutiniame kairiajame kampe.')
+    const joined = steps.join('\n')
+    expect(joined).not.toMatch(/0 mm nuo/)
+    expect(joined).not.toMatch(/bangos keter/)
+  })
+})
+
+describe('nearRectCorner', () => {
+  it('detects all four rectangle corners within tolerance', () => {
+    expect(nearRectCorner({ x: 0, y: 0 }, GOTIKA)).toBe('BL')
+    expect(nearRectCorner({ x: 920, y: 0 }, GOTIKA)).toBe('BR')
+    expect(nearRectCorner({ x: 0, y: 585 }, GOTIKA)).toBe('TL')
+    expect(nearRectCorner({ x: 918.5, y: 583 }, GOTIKA)).toBe('TR')
+  })
+
+  it('returns null when farther than 3 mm', () => {
+    expect(nearRectCorner({ x: 10, y: 0 }, GOTIKA)).toBeNull()
+    expect(nearRectCorner({ x: 111, y: 0 }, GOTIKA)).toBeNull()
   })
 })
 

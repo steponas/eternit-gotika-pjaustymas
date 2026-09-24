@@ -1,9 +1,14 @@
-import { RoofScene } from '../three'
+import { Suspense, lazy } from 'react'
 import { lt } from '../i18n/lt'
-import type { AppState } from '../state/useAppState'
+import type { AppState, CameraMode } from '../state/useAppState'
 import { CuttingTab } from './CuttingTab'
 import { DimensionsTab } from './DimensionsTab'
 import { ResultsTab } from './ResultsTab'
+import { SceneFallback } from './SceneFallback'
+
+const RoofScene = lazy(() =>
+  import('../three').then((m) => ({ default: m.RoofScene })),
+)
 
 export function RoofScreen({ state }: { state: AppState }) {
   const {
@@ -15,7 +20,7 @@ export function RoofScreen({ state }: { state: AppState }) {
     stepOrder,
     setStepOrder,
     cameraMode,
-    toggleCamera,
+    setCameraMode,
     animateKey,
     bumpAnimate,
     roofTab,
@@ -43,26 +48,47 @@ export function RoofScreen({ state }: { state: AppState }) {
     bounds: { minX: 0, maxX: 1, height: 1 },
   }
 
+  const setCam = (mode: CameraMode) => setCameraMode(mode)
+
   return (
-    <div className="roof-screen">
-      <div className="viewport viewport--roof">
-        <RoofScene
-          layout={layout ?? emptyLayout}
-          spec={spec}
-          measures={measures}
-          selectedId={selectedId}
-          onSelect={(id) => {
-            if (id) selectSheet(id)
-            else state.setSelectedId(null)
-          }}
-          stepOrder={stepOrder}
-          cameraMode={cameraMode}
-          animateKey={animateKey}
-        />
+    <div className={`roof-screen${roofTab === 'cutting' ? ' roof-screen--cutting' : ''}`}>
+      <div
+        className={`viewport viewport--roof${roofTab === 'cutting' ? ' viewport--roof-compact' : ''}`}
+      >
+        <Suspense fallback={<SceneFallback />}>
+          <RoofScene
+            layout={layout ?? emptyLayout}
+            spec={spec}
+            measures={measures}
+            selectedId={selectedId}
+            onSelect={(id) => {
+              if (id) selectSheet(id)
+              else state.setSelectedId(null)
+            }}
+            stepOrder={stepOrder}
+            cameraMode={cameraMode}
+            animateKey={animateKey}
+          />
+        </Suspense>
         <div className="viewport__overlays">
-          <button type="button" className="btn btn--overlay" onClick={toggleCamera}>
-            {cameraMode === 'orbit' ? lt.camOrbit : lt.camTop}
-          </button>
+          <div className="cam-seg" role="group" aria-label="Kamera">
+            <button
+              type="button"
+              className={`cam-seg__btn${cameraMode === 'orbit' ? ' is-active' : ''}`}
+              onClick={() => setCam('orbit')}
+              aria-pressed={cameraMode === 'orbit'}
+            >
+              {lt.camOrbit}
+            </button>
+            <button
+              type="button"
+              className={`cam-seg__btn${cameraMode === 'top' ? ' is-active' : ''}`}
+              onClick={() => setCam('top')}
+              aria-pressed={cameraMode === 'top'}
+            >
+              {lt.camTop}
+            </button>
+          </div>
           <button type="button" className="btn btn--overlay" onClick={bumpAnimate}>
             {lt.replayAnim}
           </button>

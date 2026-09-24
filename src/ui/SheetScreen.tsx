@@ -1,8 +1,13 @@
+import { Suspense, lazy } from 'react'
 import { holes, pitchX, pitchY, sheetOutline } from '../geometry'
-import { SheetInfo3D } from '../three'
 import { lt } from '../i18n/lt'
 import type { AppState } from '../state/useAppState'
 import { NumberField } from './fields'
+import { SceneFallback } from './SceneFallback'
+
+const SheetInfo3D = lazy(() =>
+  import('../three').then((m) => ({ default: m.SheetInfo3D })),
+)
 
 export function SheetScreen({ state }: { state: AppState }) {
   const {
@@ -25,7 +30,9 @@ export function SheetScreen({ state }: { state: AppState }) {
   return (
     <div className="sheet-screen">
       <div className="viewport viewport--sheet">
-        <SheetInfo3D spec={spec} showOverlap={showOverlap} />
+        <Suspense fallback={<SceneFallback />}>
+          <SheetInfo3D spec={spec} showOverlap={showOverlap} />
+        </Suspense>
         <div className="viewport__overlays">
           <button
             type="button"

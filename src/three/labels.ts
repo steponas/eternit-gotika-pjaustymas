@@ -13,8 +13,8 @@ function makeLabelCanvas(
 ): HTMLCanvasElement {
   const fontSize = opts?.fontSize ?? 48
   const pad = opts?.pad ?? 12
-  const color = opts?.color ?? '#1a1a1a'
-  const bg = opts?.bg ?? 'rgba(255,255,255,0.85)'
+  const color = opts?.color ?? '#ffffff'
+  const bg = opts?.bg ?? 'rgba(28,22,18,0.88)'
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')!
   ctx.font = `bold ${fontSize}px system-ui, sans-serif`

@@ -26,6 +26,30 @@ export function CutCard({ sheet, measure, spec }: CutCardProps) {
         compact={isFull}
       />
       {!isFull ? (
+        <ul className="cut-legend" aria-label="Legenda">
+          <li className="cut-legend__item">
+            <span className="cut-legend__swatch cut-legend__swatch--kept" aria-hidden />
+            {lt.legendKept}
+          </li>
+          <li className="cut-legend__item">
+            <span className="cut-legend__swatch cut-legend__swatch--removed" aria-hidden />
+            {lt.legendRemoved}
+          </li>
+          <li className="cut-legend__item">
+            <span className="cut-legend__swatch cut-legend__swatch--hole" aria-hidden />
+            {lt.legendHole}
+          </li>
+          <li className="cut-legend__item">
+            <span className="cut-legend__swatch cut-legend__swatch--lost" aria-hidden />
+            {lt.legendLost}
+          </li>
+          <li className="cut-legend__item">
+            <span className="cut-legend__swatch cut-legend__swatch--new" aria-hidden />
+            {lt.legendNewHole}
+          </li>
+        </ul>
+      ) : null}
+      {!isFull ? (
         <ol className="cut-card__steps">
           {steps.map((s, i) => (
             <li key={i}>{s}</li>

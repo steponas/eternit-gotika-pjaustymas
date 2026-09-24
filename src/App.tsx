@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { lt } from './i18n/lt'
 import { useAppState } from './state/useAppState'
 import { RoofScreen } from './ui/RoofScreen'
@@ -6,6 +7,10 @@ import './styles/app.css'
 
 export default function App() {
   const state = useAppState()
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [state.screen])
 
   return (
     <div className="app">

@@ -7,18 +7,24 @@ import { profileZ } from '../geometry/sheet'
 import type { PlacedSheet, SheetMeasure, SheetSpec } from '../geometry'
 import { LabelSprite } from './LabelSprite'
 import type { SharedMaterials } from './materials'
-import { COLOR_CUT_LINE, COLOR_HIGHLIGHT } from './materials'
+import {
+  COLOR_CUT_LINE,
+  COLOR_HIGHLIGHT,
+  COLOR_OUTLINE,
+} from './materials'
 import {
   MM,
   buildOffcutGeometries,
   cutOutwardNormal,
   getCachedSheetGeometry,
   sampleCutLine,
+  samplePieceOutline,
 } from './sheetGeometry'
 
 const ORDER_Z_MM = 0.4
 const HOLE_R = 0.004
 const DROP_FROM = 0.4
+const DEFAULT_LABEL_HEIGHT = 0.14
 
 export type SheetVisualMode = 'solid' | 'ghost' | 'highlight'
 
@@ -29,11 +35,11 @@ interface SheetMeshProps {
   materials: SharedMaterials
   mode: SheetVisualMode
   showCuts: boolean
-  /** 0..1 progress of drop-in (1 = settled). Driven by parent via getDropProgress. */
   getDropProgress: (order: number) => number
   onSelect: (id: string) => void
-  /** Roof-group centering offset already applied by parent; origin is absolute roof mm. */
   originOffset: { x: number; y: number }
+  /** World-space label height in metres (adaptive to roof size). */
+  labelHeight?: number
 }
 
 export function SheetMesh({
@@ -46,23 +52,23 @@ export function SheetMesh({
   getDropProgress,
   onSelect,
   originOffset,
+  labelHeight = DEFAULT_LABEL_HEIGHT,
 }: SheetMeshProps) {
   const groupRef = useRef<Group>(null)
   const offcutRef = useRef<Group>(null)
+  const isGhost = mode === 'ghost'
 
   const geometry = useMemo(
     () => getCachedSheetGeometry(sheet.piece, spec),
     [sheet.piece, spec],
   )
 
-  const material =
-    sheet.kind === 'cut' ? materials.cut : materials.full
+  const material = sheet.kind === 'cut' ? materials.cut : materials.full
 
   const ox = (sheet.origin.x - originOffset.x) * MM
   const oy = (sheet.origin.y - originOffset.y) * MM
   const baseZ = sheet.order * ORDER_Z_MM * MM
 
-  // Centroid for label (sheet-local)
   const labelPos = useMemo((): [number, number, number] => {
     let cx = 0
     let cy = 0
@@ -73,9 +79,14 @@ export function SheetMesh({
     const n = sheet.piece.length || 1
     cx /= n
     cy /= n
-    const z = profileZ(cx, spec) + 8
+    const z = profileZ(cx, spec) + 12
     return [cx * MM, cy * MM, z * MM]
   }, [sheet.piece, spec])
+
+  const outlinePts = useMemo(
+    () => samplePieceOutline(sheet.piece, spec, 1),
+    [sheet.piece, spec],
+  )
 
   const holes = measure?.holes ?? []
   const replacements = measure?.replacementHoles ?? []
@@ -111,6 +122,8 @@ export function SheetMesh({
   )
   useEffect(() => () => highlightMat?.dispose(), [highlightMat])
 
+  const edgeColor = useMemo(() => new Color(COLOR_HIGHLIGHT), [])
+
   const activeMaterial =
     mode === 'ghost'
       ? materials.ghost
@@ -123,7 +136,6 @@ export function SheetMesh({
     if (!g) return
     const p = getDropProgress(sheet.order)
     g.visible = p > 0.001
-    // easeOutCubic
     const e = 1 - Math.pow(1 - p, 3)
     g.position.z = baseZ + (1 - e) * DROP_FROM
 
@@ -151,35 +163,41 @@ export function SheetMesh({
       }}
     >
       <mesh geometry={geometry} material={activeMaterial} castShadow={false}>
-        {mode === 'highlight' && (
-          <Edges threshold={15} color={new Color(COLOR_HIGHLIGHT)} />
-        )}
+        {mode === 'highlight' && <Edges threshold={15} color={edgeColor} />}
       </mesh>
 
-      {mode !== 'ghost' &&
+      {!isGhost && outlinePts.length > 1 && (
+        <Line
+          points={outlinePts}
+          color={COLOR_OUTLINE}
+          lineWidth={1.25}
+          depthTest
+        />
+      )}
+
+      {!isGhost &&
         holes.map((h, i) => {
           if (h.lost) return null
-          const z = profileZ(h.x, spec) * MM + 0.001
+          // circleGeometry faces +Z (sheet outward normal) — no rotation
+          const z = profileZ(h.x, spec) * MM + 0.0015
           return (
             <mesh
               key={`h-${i}`}
               position={[h.x * MM, h.y * MM, z]}
-              rotation={[-Math.PI / 2, 0, 0]}
               material={materials.hole}
             >
-              <circleGeometry args={[HOLE_R, 16]} />
+              <circleGeometry args={[HOLE_R, 20]} />
             </mesh>
           )
         })}
 
-      {mode !== 'ghost' &&
+      {!isGhost &&
         replacements.map((h, i) => {
-          const z = profileZ(h.x, spec) * MM + 0.0015
+          const z = profileZ(h.x, spec) * MM + 0.002
           return (
             <mesh
               key={`r-${i}`}
               position={[h.x * MM, h.y * MM, z]}
-              rotation={[-Math.PI / 2, 0, 0]}
               material={materials.replacement}
             >
               <ringGeometry args={[HOLE_R * 0.55, HOLE_R * 1.35, 20]} />
@@ -187,13 +205,13 @@ export function SheetMesh({
           )
         })}
 
-      {mode !== 'ghost' && (
+      {!isGhost && (
         <LabelSprite
           text={String(sheet.order)}
           position={labelPos}
-          height={0.09}
-          color="#1a1a1a"
-          bg="rgba(255,255,255,0.9)"
+          height={labelHeight}
+          color="#ffffff"
+          bg="rgba(28,22,18,0.88)"
         />
       )}
 

@@ -10,6 +10,7 @@ import {
 import {
   BufferGeometry,
   Float32BufferAttribute,
+  PerspectiveCamera,
   TOUCH,
   Vector3,
   type Material,
@@ -17,7 +18,13 @@ import {
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { pitchY } from '../geometry/sheet'
 import type { Layout, Polygon, SheetMeasure, SheetSpec } from '../geometry'
-import { ROOF_GROUP_ROTATION, computeCameraTargets } from './camera'
+import {
+  DEFAULT_VFOV_DEG,
+  ROOF_GROUP_ROTATION,
+  TOP_OVERLAY_PX,
+  computeCameraTargets,
+  orderLabelHeightM,
+} from './camera'
 import { COLOR_AREA_LINE, COLOR_BG, makeSharedMaterials } from './materials'
 import { SheetMesh, type SheetVisualMode } from './SheetMesh'
 import { MM } from './sheetGeometry'
@@ -55,6 +62,34 @@ function areaFillGeometry(
   return geo
 }
 
+/** Horizontal span of a convex polygon at y (mm), expanded by padMm. */
+function spanAtY(
+  area: Polygon,
+  y: number,
+  padMm: number,
+): { x0: number; x1: number } | null {
+  const xs: number[] = []
+  for (let i = 0; i < area.length; i++) {
+    const a = area[i]!
+    const b = area[(i + 1) % area.length]!
+    const dy = b.y - a.y
+    if (Math.abs(dy) < 1e-9) {
+      if (Math.abs(a.y - y) < 1e-6) {
+        xs.push(a.x, b.x)
+      }
+      continue
+    }
+    const t = (y - a.y) / dy
+    if (t < -1e-9 || t > 1 + 1e-9) continue
+    xs.push(a.x + t * (b.x - a.x))
+  }
+  if (xs.length < 2) return null
+  return {
+    x0: Math.min(...xs) - padMm,
+    x1: Math.max(...xs) + padMm,
+  }
+}
+
 function Battens({
   layout,
   spec,
@@ -67,9 +102,6 @@ function Battens({
   material: Material
 }) {
   const pY = pitchY(spec)
-  const width = (layout.bounds.maxX - layout.bounds.minX) * MM
-  const midX =
-    ((layout.bounds.minX + layout.bounds.maxX) / 2 - offset.x) * MM
   const thickness = 0.012
   const depth = 0.03
   const ys: number[] = []
@@ -84,6 +116,10 @@ function Battens({
   return (
     <group>
       {uniqueYs.map((yMm) => {
+        const span = spanAtY(layout.area, yMm, 60)
+        if (!span) return null
+        const width = (span.x1 - span.x0) * MM
+        const midX = ((span.x0 + span.x1) / 2 - offset.x) * MM
         const y = (yMm - offset.y) * MM
         return (
           <mesh
@@ -91,7 +127,7 @@ function Battens({
             position={[midX, y, -thickness * 0.5 - 0.002]}
             material={material}
           >
-            <boxGeometry args={[width + 0.04, depth, thickness]} />
+            <boxGeometry args={[Math.max(width, 0.02), depth, thickness]} />
           </mesh>
         )
       })}
@@ -106,49 +142,87 @@ function CameraRig({
   layout: Layout
   cameraMode: CameraMode
 }) {
-  const { camera, size, controls } = useThree()
-  const orbit = controls as OrbitControlsImpl | null
+  const camera = useThree((s) => s.camera)
+  const size = useThree((s) => s.size)
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
   const targetPos = useRef(new Vector3())
   const targetLook = useRef(new Vector3())
   const animating = useRef(false)
   const initialized = useRef(false)
+  const scratchRef = useRef<PerspectiveCamera | null>(null)
 
-  const aspect = size.width / Math.max(1, size.height)
   const boundsKey = `${layout.bounds.minX},${layout.bounds.maxX},${layout.bounds.height}`
+  const vfov =
+    (camera as PerspectiveCamera).isPerspectiveCamera
+      ? (camera as PerspectiveCamera).fov
+      : DEFAULT_VFOV_DEG
 
   useEffect(() => {
-    const t = computeCameraTargets(layout, cameraMode, aspect)
+    const persp = camera as PerspectiveCamera
+    if (persp.isPerspectiveCamera) {
+      persp.clearViewOffset()
+      persp.aspect = size.width / Math.max(1, size.height)
+      persp.updateProjectionMatrix()
+    }
+
+    if (!scratchRef.current) {
+      scratchRef.current = new PerspectiveCamera(
+        vfov,
+        size.width / Math.max(1, size.height),
+        0.05,
+        500,
+      )
+    }
+
+    const t = computeCameraTargets(
+      layout,
+      cameraMode,
+      size.width,
+      size.height,
+      vfov,
+      TOP_OVERLAY_PX,
+      scratchRef.current,
+    )
     targetPos.current.copy(t.position)
     targetLook.current.copy(t.target)
     if (!initialized.current) {
       camera.position.copy(t.position)
       camera.lookAt(t.target)
-      if (orbit) {
-        orbit.target.copy(t.target)
-        orbit.update()
+      if (controls) {
+        controls.target.copy(t.target)
+        controls.update()
       }
       initialized.current = true
       animating.current = false
     } else {
       animating.current = true
     }
-  }, [layout, cameraMode, aspect, camera, orbit, boundsKey])
+  }, [
+    layout,
+    cameraMode,
+    camera,
+    controls,
+    boundsKey,
+    vfov,
+    size.width,
+    size.height,
+  ])
 
   useFrame((_, dt) => {
     if (!animating.current) return
     const k = 1 - Math.exp(-5 * dt)
     camera.position.lerp(targetPos.current, k)
-    if (orbit) {
-      orbit.target.lerp(targetLook.current, k)
-      orbit.update()
+    if (controls) {
+      controls.target.lerp(targetLook.current, k)
+      controls.update()
     } else {
       camera.lookAt(targetLook.current)
     }
     if (camera.position.distanceTo(targetPos.current) < 0.01) {
       camera.position.copy(targetPos.current)
-      if (orbit) {
-        orbit.target.copy(targetLook.current)
-        orbit.update()
+      if (controls) {
+        controls.target.copy(targetLook.current)
+        controls.update()
       }
       animating.current = false
     }
@@ -232,6 +306,7 @@ function RoofContent(props: RoofSceneViewProps) {
 
   const maxOrder = layout.sheets.length
   const progressRef = useRef(new Float32Array(maxOrder + 2))
+  const labelHeight = useMemo(() => orderLabelHeightM(layout), [layout])
 
   useEffect(() => {
     progressRef.current = new Float32Array(maxOrder + 2)
@@ -281,8 +356,8 @@ function RoofContent(props: RoofSceneViewProps) {
         enableDamping
         dampingFactor={0.08}
         enablePan
-        minPolarAngle={0.15}
-        maxPolarAngle={Math.PI * 0.72}
+        minPolarAngle={0.12}
+        maxPolarAngle={Math.PI * 0.78}
         touches={{
           ONE: TOUCH.ROTATE,
           TWO: TOUCH.DOLLY_PAN,
@@ -313,6 +388,7 @@ function RoofContent(props: RoofSceneViewProps) {
               getDropProgress={getDropProgress}
               onSelect={onSelect}
               originOffset={originOffset}
+              labelHeight={labelHeight}
             />
           )
         })}
@@ -332,7 +408,12 @@ export function RoofScene(props: RoofSceneViewProps) {
       style={{ width: '100%', height: '100%', touchAction: 'none' }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: false }}
-      camera={{ fov: 42, near: 0.05, far: 200, position: [0, 1, 3] }}
+      camera={{
+        fov: DEFAULT_VFOV_DEG,
+        near: 0.05,
+        far: 500,
+        position: [0, 1, 3],
+      }}
       onPointerMissed={onMissed}
     >
       <RoofContent {...props} />

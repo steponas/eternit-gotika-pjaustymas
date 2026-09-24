@@ -9,8 +9,61 @@ import {
 } from '../geometry'
 import { lt, waveOrdinal } from '../i18n/lt'
 
+const CORNER_TOL_MM = 3
+
 function roundMm(n: number): number {
   return Math.round(n)
+}
+
+export type RectCorner = 'BL' | 'BR' | 'TL' | 'TR'
+
+/** Rectangle-bounding corners of the sheet (not factory hex cuts). */
+export function nearRectCorner(
+  p: Vec2,
+  spec: SheetSpec,
+  tol = CORNER_TOL_MM,
+): RectCorner | null {
+  const W = spec.width
+  const L = spec.length
+  const corners: { id: RectCorner; x: number; y: number }[] = [
+    { id: 'BL', x: 0, y: 0 },
+    { id: 'BR', x: W, y: 0 },
+    { id: 'TL', x: 0, y: L },
+    { id: 'TR', x: W, y: L },
+  ]
+  let best: RectCorner | null = null
+  let bestD = Infinity
+  for (const c of corners) {
+    const d = Math.hypot(p.x - c.x, p.y - c.y)
+    if (d < bestD) {
+      bestD = d
+      best = c.id
+    }
+  }
+  return bestD <= tol ? best : null
+}
+
+export function cornerNameLt(corner: RectCorner): string {
+  switch (corner) {
+    case 'BL':
+      return 'apatiniame kairiajame kampe'
+    case 'BR':
+      return 'apatiniame dešiniajame kampe'
+    case 'TL':
+      return 'viršutiniame kairiajame kampe'
+    case 'TR':
+      return 'viršutiniame dešiniajame kampe'
+  }
+}
+
+export function cornerInstruction(
+  corner: RectCorner,
+  role: 'start' | 'end',
+): string {
+  const name = cornerNameLt(corner)
+  return role === 'start'
+    ? `Pjūvis prasideda ${name}.`
+    : `Pjūvis baigiasi ${name}.`
 }
 
 function crestHint(ep: EdgePoint): string {
@@ -76,6 +129,17 @@ function markOnEdge(ep: EdgePoint, spec: SheetSpec): string {
   }
 }
 
+/** Describe a cut endpoint (corner shortcut or edge mark). */
+export function describeEndpoint(
+  ep: EdgePoint,
+  spec: SheetSpec,
+  role: 'start' | 'end',
+): string {
+  const corner = nearRectCorner(ep.p, spec)
+  if (corner) return cornerInstruction(corner, role)
+  return markOnEdge(ep, spec)
+}
+
 function centroid(poly: { x: number; y: number }[]): Vec2 {
   let sx = 0
   let sy = 0
@@ -97,7 +161,6 @@ export function removedSideLabel(
   const cHex = centroid(hex)
   const dx = cPiece.x - cHex.x
   const dy = cPiece.y - cHex.y
-  // Removed is opposite of where the piece centroid sits relative to hex
   const parts: string[] = []
   const thrX = spec.width * 0.05
   const thrY = spec.length * 0.05
@@ -108,18 +171,13 @@ export function removedSideLabel(
     parts.push(dy < 0 ? lt.removedTop : lt.removedBottom)
   }
   if (parts.length === 0) {
-    // fallback: larger offcut direction by comparing extents
     return lt.removedRight
   }
-  // Prefer compound like "viršutinė dešinė"
   if (parts.length === 2) {
     const vert = parts.find((p) => p === lt.removedTop || p === lt.removedBottom)
     const horiz = parts.find((p) => p === lt.removedLeft || p === lt.removedRight)
     if (vert && horiz) {
-      const vAdj =
-        vert === lt.removedTop
-          ? 'viršutinė'
-          : 'apatinė'
+      const vAdj = vert === lt.removedTop ? 'viršutinė' : 'apatinė'
       return `${vAdj} ${horiz}`
     }
   }
@@ -146,8 +204,8 @@ export function generateInstructions(
     if (multi) {
       steps.push(`${lt.cutLabel(i + 1)}.`)
     }
-    steps.push(markOnEdge(cut.a, spec))
-    steps.push(markOnEdge(cut.b, spec))
+    steps.push(describeEndpoint(cut.a, spec, 'start'))
+    steps.push(describeEndpoint(cut.b, spec, 'end'))
     const side = removedSideLabel(sheet.piece, spec)
     steps.push(
       `Sujunkite žymes tiesia linija ir pjaukite. Nupjaunama dalis: ${side}.`,

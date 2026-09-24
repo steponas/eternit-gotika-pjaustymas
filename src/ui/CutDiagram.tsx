@@ -1,9 +1,20 @@
 import type { EdgePoint, Polygon, SheetMeasure, SheetSpec } from '../geometry'
 import { sheetOutline } from '../geometry'
 import { lt } from '../i18n/lt'
+import { nearRectCorner } from './instructions'
 
-const MARGIN = 140
-const HOLE_R = 8
+/** Extra space so dim lines + primary + secondary text aren't clipped. */
+const MARGIN_TOP = 300
+const MARGIN_BOTTOM = 320
+const MARGIN_LEFT = 300
+const MARGIN_RIGHT = 300
+const HOLE_R = 12
+const CORNER_MARK_R = 16
+const PRIMARY_FS = 70
+const SECONDARY_FS = 40
+const CREST_FS = 40
+const DRILL_FS = 34
+const CUT_STROKE = 8
 
 function roundMm(n: number): number {
   return Math.round(n)
@@ -18,6 +29,39 @@ function polyPointsFlipped(poly: Polygon, length: number): string {
   return poly.map((p) => `${p.x},${sy(p.y, length)}`).join(' ')
 }
 
+function cornerSvgPos(
+  corner: NonNullable<ReturnType<typeof nearRectCorner>>,
+  W: number,
+  L: number,
+): { x: number; y: number } {
+  switch (corner) {
+    case 'BL':
+      return { x: 0, y: sy(0, L) }
+    case 'BR':
+      return { x: W, y: sy(0, L) }
+    case 'TL':
+      return { x: 0, y: sy(L, L) }
+    case 'TR':
+      return { x: W, y: sy(L, L) }
+  }
+}
+
+function CornerMark({
+  x,
+  y,
+}: {
+  x: number
+  y: number
+}) {
+  const r = CORNER_MARK_R
+  return (
+    <g>
+      <circle cx={x} cy={y} r={r} fill="#c0392b" stroke="#fff" strokeWidth={3} />
+      <circle cx={x} cy={y} r={4} fill="#fff" />
+    </g>
+  )
+}
+
 interface DimProps {
   ep: EdgePoint
   spec: SheetSpec
@@ -27,10 +71,16 @@ interface DimProps {
 function DimensionAnnotations({ ep, spec, idx }: DimProps) {
   const W = spec.width
   const L = spec.length
+  const corner = nearRectCorner(ep.p, spec)
+  if (corner) {
+    const pos = cornerSvgPos(corner, W, L)
+    return <CornerMark x={pos.x} y={pos.y} />
+  }
+
   const py = sy(ep.p.y, L)
-  const primaryFs = 46
-  const secondaryFs = 28
-  const gap = 70 + (idx % 2) * 36
+  const primaryFs = PRIMARY_FS
+  const secondaryFs = SECONDARY_FS
+  const gap = 110 + (idx % 2) * 50
 
   const mainVal = (rec: EdgePoint['recommended']): number => {
     switch (rec) {
@@ -65,7 +115,7 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
   if (ep.edge === 'bottom') {
     const rec = ep.recommended === 'fromLeft' ? 'fromLeft' : 'fromRight'
     const x0 = rec === 'fromRight' ? W : 0
-    const y = L + gap // below bottom edge in SVG
+    const y = L + gap
     const mid = (x0 + ep.p.x) / 2
     return (
       <g>
@@ -90,7 +140,7 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
         />
         <text
           x={mid}
-          y={y + 42}
+          y={y + 68}
           textAnchor="middle"
           fontSize={primaryFs}
           fontWeight={700}
@@ -98,7 +148,7 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
         >
           {mainVal(rec)}
         </text>
-        <text x={mid} y={y + 72} textAnchor="middle" fontSize={secondaryFs} fill="#888">
+        <text x={mid} y={y + 118} textAnchor="middle" fontSize={secondaryFs} fill="#888">
           ({otherVal(rec)})
         </text>
       </g>
@@ -108,7 +158,7 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
   if (ep.edge === 'top') {
     const rec = ep.recommended === 'fromRight' ? 'fromRight' : 'fromLeft'
     const x0 = rec === 'fromLeft' ? 0 : W
-    const y = -gap // above top edge in SVG
+    const y = -gap
     const mid = (x0 + ep.p.x) / 2
     return (
       <g>
@@ -133,7 +183,7 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
         />
         <text
           x={mid}
-          y={y - 14}
+          y={y - 22}
           textAnchor="middle"
           fontSize={primaryFs}
           fontWeight={700}
@@ -141,7 +191,7 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
         >
           {mainVal(rec)}
         </text>
-        <text x={mid} y={y + 28} textAnchor="middle" fontSize={secondaryFs} fill="#888">
+        <text x={mid} y={y + 42} textAnchor="middle" fontSize={secondaryFs} fill="#888">
           ({otherVal(rec)})
         </text>
       </g>
@@ -150,7 +200,7 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
 
   if (ep.edge === 'left') {
     const rec = ep.recommended === 'fromBottom' ? 'fromBottom' : 'fromTop'
-    const y0 = rec === 'fromTop' ? 0 : L // SVG: top=0, bottom=L
+    const y0 = rec === 'fromTop' ? 0 : L
     const y1 = py
     const x = -gap
     const mid = (y0 + y1) / 2
@@ -169,23 +219,23 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
           strokeDasharray="6 4"
         />
         <text
-          x={x - 18}
+          x={x - 28}
           y={mid}
           textAnchor="middle"
           fontSize={primaryFs}
           fontWeight={700}
           fill="#111"
-          transform={`rotate(-90 ${x - 18} ${mid})`}
+          transform={`rotate(-90 ${x - 28} ${mid})`}
         >
           {mainVal(rec)}
         </text>
         <text
-          x={x + 30}
+          x={x + 44}
           y={mid}
           textAnchor="middle"
           fontSize={secondaryFs}
           fill="#888"
-          transform={`rotate(-90 ${x + 30} ${mid})`}
+          transform={`rotate(-90 ${x + 44} ${mid})`}
         >
           ({otherVal(rec)})
         </text>
@@ -214,23 +264,23 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
           strokeDasharray="6 4"
         />
         <text
-          x={x + 18}
+          x={x + 28}
           y={mid}
           textAnchor="middle"
           fontSize={primaryFs}
           fontWeight={700}
           fill="#111"
-          transform={`rotate(90 ${x + 18} ${mid})`}
+          transform={`rotate(90 ${x + 28} ${mid})`}
         >
           {mainVal(rec)}
         </text>
         <text
-          x={x - 30}
+          x={x - 44}
           y={mid}
           textAnchor="middle"
           fontSize={secondaryFs}
           fill="#888"
-          transform={`rotate(90 ${x - 30} ${mid})`}
+          transform={`rotate(90 ${x - 44} ${mid})`}
         >
           ({otherVal(rec)})
         </text>
@@ -238,7 +288,6 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
     )
   }
 
-  // inside / corner cuts
   const fromLeft = roundMm(ep.fromLeft ?? ep.p.x)
   const fromRight = roundMm(ep.fromRight ?? W - ep.p.x)
   const fromBottom = roundMm(ep.fromBottom ?? ep.p.y)
@@ -262,7 +311,7 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
       />
       <text
         x={(x0 + ep.p.x) / 2}
-        y={yHoriz + 42}
+        y={yHoriz + 68}
         textAnchor="middle"
         fontSize={primaryFs}
         fontWeight={700}
@@ -281,13 +330,13 @@ function DimensionAnnotations({ ep, spec, idx }: DimProps) {
         strokeDasharray="6 4"
       />
       <text
-        x={xVert + (nearerLeft ? -18 : 18)}
+        x={xVert + (nearerLeft ? -28 : 28)}
         y={(L + py) / 2}
         textAnchor="middle"
         fontSize={primaryFs}
         fontWeight={700}
         fill="#111"
-        transform={`rotate(${nearerLeft ? -90 : 90} ${xVert + (nearerLeft ? -18 : 18)} ${(L + py) / 2})`}
+        transform={`rotate(${nearerLeft ? -90 : 90} ${xVert + (nearerLeft ? -28 : 28)} ${(L + py) / 2})`}
       >
         {fromBottom}
       </text>
@@ -313,10 +362,10 @@ export function CutDiagram({
   const W = spec.width
   const L = spec.length
   const hex = sheetOutline(spec)
-  const vbX = -MARGIN
-  const vbY = -MARGIN
-  const vbW = W + 2 * MARGIN
-  const vbH = L + 2 * MARGIN
+  const vbX = -MARGIN_LEFT
+  const vbY = -MARGIN_TOP
+  const vbW = W + MARGIN_LEFT + MARGIN_RIGHT
+  const vbH = L + MARGIN_TOP + MARGIN_BOTTOM
   const pid = `hatch-${W}-${L}`
 
   const dimPoints: EdgePoint[] = []
@@ -350,17 +399,16 @@ export function CutDiagram({
         <text
           key={`wl-${i}`}
           x={cx}
-          y={-24}
+          y={-36}
           textAnchor="middle"
-          fontSize={32}
+          fontSize={CREST_FS}
           fill="#444"
-          fontWeight={600}
+          fontWeight={700}
         >
           {i + 1}
         </text>
       ))}
 
-      {/* Hatched hex (removed), then kept piece on top */}
       <polygon
         points={polyPointsFlipped(hex, L)}
         fill={`url(#${pid})`}
@@ -395,7 +443,7 @@ export function CutDiagram({
           x2={c.b.p.x}
           y2={sy(c.b.p.y, L)}
           stroke="#c0392b"
-          strokeWidth={5}
+          strokeWidth={CUT_STROKE}
           strokeLinecap="round"
         />
       ))}
@@ -411,7 +459,7 @@ export function CutDiagram({
                 r={HOLE_R}
                 fill="none"
                 stroke="#999"
-                strokeWidth={2}
+                strokeWidth={2.5}
               />
               <line
                 x1={h.x - HOLE_R}
@@ -419,7 +467,7 @@ export function CutDiagram({
                 x2={h.x + HOLE_R}
                 y2={cy + HOLE_R}
                 stroke="#999"
-                strokeWidth={2}
+                strokeWidth={2.5}
               />
               <line
                 x1={h.x + HOLE_R}
@@ -427,7 +475,7 @@ export function CutDiagram({
                 x2={h.x - HOLE_R}
                 y2={cy + HOLE_R}
                 stroke="#999"
-                strokeWidth={2}
+                strokeWidth={2.5}
               />
             </g>
           )
@@ -442,17 +490,17 @@ export function CutDiagram({
             <circle
               cx={h.x}
               cy={cy}
-              r={HOLE_R + 4}
+              r={HOLE_R + 5}
               fill="none"
               stroke="#e67e22"
-              strokeWidth={3}
+              strokeWidth={3.5}
             />
             <circle cx={h.x} cy={cy} r={HOLE_R} fill="#e67e22" />
             <text
               x={h.x}
-              y={cy - HOLE_R - 12}
+              y={cy - HOLE_R - 16}
               textAnchor="middle"
-              fontSize={26}
+              fontSize={DRILL_FS}
               fill="#c45c12"
               fontWeight={700}
             >

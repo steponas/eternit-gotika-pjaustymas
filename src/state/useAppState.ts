@@ -285,6 +285,7 @@ export function useAppState() {
     stepOrder,
     setStepOrder,
     cameraMode,
+    setCameraMode,
     toggleCamera,
     animateKey,
     bumpAnimate,

@@ -61,6 +61,11 @@ export const lt = {
   fullSheetNoCut: 'Pilnas lakštas — pjauti nereikia',
   cutLabel: (n: number) => `Pjūvis ${n}`,
   drillLabel: 'gręžti',
+  legendKept: 'Paliekama dalis',
+  legendRemoved: 'Nupjaunama',
+  legendHole: 'Esama skylė',
+  legendLost: 'Prarasta skylė',
+  legendNewHole: 'Nauja skylė',
   tipMeasure:
     'Matuokite tiesia rulete, uždėta ant bangų keterų (ne pagal bangų paviršių). Žymes darykite lakšto viršutinėje (dažytoje) pusėje.',
 

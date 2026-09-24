@@ -206,6 +206,34 @@ export function sampleCutLine(
   return pts
 }
 
+/**
+ * Closed line loop of a convex piece polygon following the wave surface.
+ * Samples along each edge so the outline tracks corrugation.
+ */
+export function samplePieceOutline(
+  piece: Polygon,
+  spec: SheetSpec,
+  zLiftMm = 1,
+  samplesPerMm = 0.05,
+): [number, number, number][] {
+  const pts: [number, number, number][] = []
+  if (piece.length < 2) return pts
+  for (let i = 0; i < piece.length; i++) {
+    const a = piece[i]!
+    const b = piece[(i + 1) % piece.length]!
+    const len = Math.hypot(b.x - a.x, b.y - a.y)
+    const n = Math.max(2, Math.ceil(len * samplesPerMm))
+    for (let k = 0; k < n; k++) {
+      const t = k / n
+      const x = a.x + (b.x - a.x) * t
+      const y = a.y + (b.y - a.y) * t
+      pts.push([x * MM, y * MM, (profileZ(x, spec) + zLiftMm) * MM])
+    }
+  }
+  if (pts.length > 0) pts.push(pts[0]!)
+  return pts
+}
+
 /** Sum of signed XY triangle areas (front+back ⇒ ~2×). Returns absolute value. */
 export function xyTriangleAreaSum(geo: BufferGeometry): number {
   const pos = geo.getAttribute('position') as BufferAttribute

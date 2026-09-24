@@ -57,6 +57,7 @@ export function CuttingTab({
   const total = sequence.length
   const colFromRight = layout.cols - current.col
   const measure = measures.get(current.id)
+  const sheetLabel = lt.sheetOf(current.order, layout.sheets.length)
 
   const go = (delta: number) => {
     if (sequence.length === 0) return
@@ -69,47 +70,56 @@ export function CuttingTab({
   }
 
   return (
-    <div className="tab-panel cutting-tab">
-      <div className="cutting-nav">
-        <button type="button" className="btn btn--lg" onClick={() => go(-1)} disabled={idx <= 0}>
-          {lt.prev}
-        </button>
+    <div className="cutting-tab">
+      <div className="cutting-tab__scroll">
+        <header className="cutting-header cutting-header--compact">
+          <h2 className="cutting-header__title">{sheetLabel}</h2>
+          <p className="cutting-header__pos">
+            {lt.sheetPosition(current.row + 1, colFromRight)}
+          </p>
+          {onlyCut && total > 0 ? (
+            <p className="cutting-header__sub">
+              {idx + 1} / {total} (pjaustomi)
+            </p>
+          ) : null}
+        </header>
+
+        <label className="toggle-row">
+          <input
+            type="checkbox"
+            checked={onlyCut}
+            onChange={(e) => onOnlyCut(e.target.checked)}
+          />
+          <span>{lt.onlyCut}</span>
+        </label>
+
+        {measure ? (
+          <CutCard sheet={current} measure={measure} spec={spec} />
+        ) : null}
+      </div>
+
+      <div className="cutting-tab__bar">
         <button
           type="button"
           className="btn btn--lg"
+          onClick={() => go(-1)}
+          disabled={idx <= 0}
+        >
+          {lt.prev}
+        </button>
+        <div className="cutting-tab__bar-label" aria-live="polite">
+          {sheetLabel}
+        </div>
+        <button
+          type="button"
+          className="btn btn--lg"
+          data-cutting-next
           onClick={() => go(1)}
           disabled={idx >= total - 1}
         >
           {lt.next}
         </button>
       </div>
-
-      <label className="toggle-row">
-        <input
-          type="checkbox"
-          checked={onlyCut}
-          onChange={(e) => onOnlyCut(e.target.checked)}
-        />
-        <span>{lt.onlyCut}</span>
-      </label>
-
-      <header className="cutting-header">
-        <h2 className="cutting-header__title">
-          {lt.sheetOf(current.order, layout.sheets.length)}
-        </h2>
-        <p className="cutting-header__pos">
-          {lt.sheetPosition(current.row + 1, colFromRight)}
-        </p>
-        {onlyCut && total > 0 ? (
-          <p className="cutting-header__sub">
-            {idx + 1} / {total} (pjaustomi)
-          </p>
-        ) : null}
-      </header>
-
-      {measure ? (
-        <CutCard sheet={current} measure={measure} spec={spec} />
-      ) : null}
     </div>
   )
 }

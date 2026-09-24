@@ -1,8 +1,9 @@
 import { Color, DoubleSide, MeshStandardMaterial } from 'three'
 
 export const COLOR_FULL = '#9c3b2c'
-export const COLOR_CUT = '#b8573f'
-export const COLOR_GHOST = '#9c3b2c'
+export const COLOR_CUT = '#d0703f'
+export const COLOR_GHOST = '#e8d5c8'
+export const COLOR_OUTLINE = '#2a1810'
 export const COLOR_HIGHLIGHT = '#e8c84a'
 export const COLOR_CUT_LINE = '#c62828'
 export const COLOR_OFFCUT = '#e53935'
@@ -28,10 +29,10 @@ export function makeSharedMaterials() {
   })
   const ghost = new MeshStandardMaterial({
     color: new Color(COLOR_GHOST),
-    roughness: 0.85,
-    metalness: 0.02,
+    roughness: 0.9,
+    metalness: 0,
     transparent: true,
-    opacity: 0.12,
+    opacity: 0.07,
     depthWrite: false,
     side: DoubleSide,
   })

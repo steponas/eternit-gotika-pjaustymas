@@ -4,20 +4,21 @@ import { createLabelTexture } from './labels'
 interface LabelPlaneProps {
   text: string
   position: [number, number, number]
+  /** World-space height of the sprite in metres (≈0.14 = 140 mm). */
   height?: number
   color?: string
   bg?: string
   fontSize?: number
 }
 
-/** Billboard-ish label using a Sprite via drei... we use raw sprite through R3F. */
+/** Camera-facing label via Sprite + CanvasTexture (works offline). */
 export function LabelSprite({
   text,
   position,
-  height = 0.08,
-  color = '#1a1a1a',
-  bg = 'rgba(255,255,255,0.88)',
-  fontSize = 48,
+  height = 0.14,
+  color = '#ffffff',
+  bg = 'rgba(28,22,18,0.88)',
+  fontSize = 64,
 }: LabelPlaneProps) {
   const label = useMemo(
     () => createLabelTexture(text, { color, bg, fontSize }),
